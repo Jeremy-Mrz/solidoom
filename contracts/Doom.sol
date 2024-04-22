@@ -55,13 +55,12 @@ contract Doom is IERC721Receiver, ERC1155 {
         carbonAddress = ccAddress;
     }
 
-    using ECDSA for bytes32;
-
     event StrategiesCreated(bytes32 idsHash);
     event StategiesIdList(uint[] ids);
     event EtfIdCreated(uint etfId);
     event EtfSharesBought(uint etfId, uint value);
     event Received(address, uint);
+    event PriceUpdateSignerAddress(address[] addresses);
 
     struct Strategies {
         address token0;
@@ -76,6 +75,13 @@ contract Doom is IERC721Receiver, ERC1155 {
         uint256 deadline;
         uint128 minReturn;
         uint value;
+    }
+
+    struct StrategyInformations {
+        address token0;
+        address token1;
+        CarbonController.Order order0;
+        CarbonController.Order order1;
     }
 
     // etfId => tokenAddress => number of ERC20 for this etf
@@ -260,20 +266,59 @@ contract Doom is IERC721Receiver, ERC1155 {
 
     function updatePrice(
         uint _etfId,
-        CarbonController.Strategy[] calldata _currentStrategies,
-        CarbonController.Strategy[] calldata _newStrategies,
-        bytes32[] calldata _signatures
-    ) public {
+        // CarbonController.Strategy[] calldata _currentStrategies,
+        StrategyInformations[] calldata _newStrategies,
+        bytes[] calldata _signatures
+    ) view public returns(address[] memory) {
         //Create solidity message from strategy
         //Ecrecover addresses from message + signature
         //Get balance of each address
         //Verify if balance > treshhold
-        //Update strategy (retrieve current strategy values)
+        //Update strategy (retrieve current strategy values);
+        address[] memory addresses = new address[](_newStrategies.length);
         for (uint i = 0; i < _signatures.length; i++) {
-            bytes32 signature = _signatures[i];
-            //TODO I need to hash the newStrategy[i] in order to compare it to the signed message to retrieve the signer address
-
+            bytes memory signature = _signatures[i];
+            bytes32 message = ECDSA.toEthSignedMessageHash(_hashStrategy(_newStrategies[i]));
+            address signerAddress = ECDSA.recover(message, signature);
+            addresses[i] = signerAddress;
         }
+        return addresses;
+    }
+
+    function _hashStrategy(StrategyInformations calldata _strategy) pure private returns(bytes32) {
+        CarbonController.Order memory order0 = _strategy.order0;
+        CarbonController.Order memory order1 = _strategy.order1;
+        bytes32 order0Hash = keccak256(abi.encodePacked(order0.y, order0.z, order0.A, order0.B));
+        bytes32 order1Hash = keccak256(abi.encodePacked(order1.y, order1.z, order1.A, order1.B));
+        return keccak256(abi.encodePacked(_strategy.token0, _strategy.token1, order0Hash, order1Hash));
+    }
+
+    function hashTest(address token0, address token1, bytes calldata signature) pure public returns(address) {
+        bytes32 hashedTokens = keccak256(abi.encodePacked(token0, token1));
+        bytes32 message = ECDSA.toEthSignedMessageHash(hashedTokens);
+        address signerAddress = ECDSA.recover(message, signature);
+        return signerAddress;
+    }
+
+    function hashOrderTest(CarbonController.Order calldata order0, CarbonController.Order calldata order1, bytes calldata signature) pure public returns(address) {
+        bytes32 order0Hash = keccak256(abi.encodePacked(order0.y, order0.z, order0.A, order0.B));
+        bytes32 order1Hash = keccak256(abi.encodePacked(order1.y, order1.z, order1.A, order1.B));
+        bytes32 message = ECDSA.toEthSignedMessageHash(keccak256(abi.encodePacked(order0Hash, order1Hash)));
+        address signerAddress = ECDSA.recover(message, signature);
+        return signerAddress;
+    }
+    function hashSignleOrderTest(CarbonController.Order calldata order0, bytes calldata signature) pure public returns(address, uint, uint, uint, uint) {
+        bytes32 order0Hash = keccak256(abi.encodePacked(uint(order0.y), uint(order0.z), uint(order0.A), uint(order0.B)));
+        bytes32 message = ECDSA.toEthSignedMessageHash(order0Hash);
+        address signerAddress = ECDSA.recover(message, signature);
+        return (signerAddress, order0.y, order0.z, order0.A, order0.B);
+    }
+
+    function hashNumber(uint256 n0, uint256 n1, bytes calldata signature) pure public returns(address) {
+        bytes32 hashedNumbers = keccak256(abi.encodePacked(n0, n1));
+        bytes32 message = ECDSA.toEthSignedMessageHash(hashedNumbers);
+        address signerAddress = ECDSA.recover(message, signature);
+        return signerAddress;
     }
 
     function getEtfTokenBalance(

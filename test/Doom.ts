@@ -13,7 +13,7 @@ import { createEthStrategies } from "./utils/createETHStrategies";
 // import { _carbonAbi } from "../typechain-types/factories/contracts/Doom.sol/CarbonController__factory";
 import { parseUnits } from "@bancor/carbon-sdk/utils";
 import { CarbonController, CarbonController__factory } from "../typechain-types";
-import { hashStrategy } from "../utils/hash";
+import { hashStrategy, hashTestOrder, hashTestSingleOrder } from "../utils/hash";
 
 const { SDK } = initSDK();
 
@@ -369,7 +369,7 @@ describe("Doom", function () {
 
 
   describe("Update strategy price", () => {
-    it("Should allow user to invest on an ETF with new structure", async () => {
+    it("Should allow users to update a strategy price", async () => {
       const { doom, carbonController } = await loadFixture(
         deployDoomFixture
       );
@@ -413,7 +413,10 @@ describe("Doom", function () {
       });
       doom.on(doom.filters["EtfIdCreated(uint256)"], (id) => {
         etfId = id;
-      })
+      });
+      doom.on(doom.filters["PriceUpdateSignerAddress(address[])"], (ids) => {
+        console.log({ ids });
+      });
 
       const tx0 = await doom.multiCallCreateStrategy(
         strategiesBundle as any,
@@ -452,14 +455,25 @@ describe("Doom", function () {
         signer4.signMessage(updatedStrategyHash),
       ]);
 
-      const updateTx = await doom.updatePrice(
+      const hash = hashTestSingleOrder(updatedStrategy.order0);
+      const signedMessage = await signer0.signMessage(hash);
+
+
+      const res = await doom.hashSignleOrderTest((updatedStrategy.order0 as any), signedMessage);
+
+      console.log({res});
+
+      return;
+
+      const signerAddresses = await doom.updatePrice(
         (etfId as any),
+        ([updatedStrategy, updatedStrategy, updatedStrategy, updatedStrategy, updatedStrategy] as any),
         [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4]
       );
 
-      await updateTx.wait();
-
-      console.log({message: signedMessage0, length: signedMessage0.length})
+      const address1 = await signer0.getAddress();
+      console.log({ address1 });
+      console.log({ signerAddresses });
 
     });
   })

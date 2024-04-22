@@ -1,6 +1,7 @@
 import { EncodedOrder } from "@bancor/carbon-sdk";
 import { OrderStruct } from "@bancor/carbon-sdk/dist/abis/types/CarbonController";
 import { BigNumber } from "@bancor/carbon-sdk/utils";
+import { ConvertedStrategy } from "./types";
 
 type ToBigInt<T> = T extends BigNumber ? BigInt : T;
 type BigIntRecord<T extends object> = {
