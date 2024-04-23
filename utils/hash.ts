@@ -4,7 +4,7 @@ import { ConvertedStrategy } from "./types";
 export function hashStrategy(strategy: ConvertedStrategy) {
   const { token0, token1, order0, order1 } = strategy;
 
-  const orderTypes = ['uint256', 'uint256', 'uint256', 'uint256'];
+  const orderTypes = ['uint128', 'uint128', 'uint64', 'uint64'];
   
   const order0Result = [order0.y, order0.z, order0.A, order0.B];
   const order1Result = [order1.y, order1.z, order1.A, order1.B];

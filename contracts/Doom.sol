@@ -260,20 +260,35 @@ contract Doom is IERC721Receiver, ERC1155 {
 
     function updatePrice(
         uint _etfId,
-        CarbonController.Strategy[] calldata _currentStrategies,
+        // CarbonController.Strategy[] calldata _currentStrategies,
         CarbonController.Strategy[] calldata _newStrategies,
-        bytes32[] calldata _signatures
-    ) public {
+        bytes[] calldata _signatures
+    ) pure public returns(address[] memory){
         //Create solidity message from strategy
         //Ecrecover addresses from message + signature
         //Get balance of each address
         //Verify if balance > treshhold
         //Update strategy (retrieve current strategy values)
-        for (uint i = 0; i < _signatures.length; i++) {
-            bytes32 signature = _signatures[i];
-            //TODO I need to hash the newStrategy[i] in order to compare it to the signed message to retrieve the signer address
-
+        address[] memory signersAddresses = new address[](_newStrategies.length *_signatures.length);
+        uint count = 0;
+        for (uint i = 0; i < _newStrategies.length; i++) {
+            bytes32 message = keccak256(abi.encodePacked(_hashStrategy(_newStrategies[i])));
+            for(uint j = 0; j < _signatures.length; j++) {
+            bytes memory signature = _signatures[j];
+            address signerAddress = ECDSA.recover(message, signature);
+            signersAddresses[count] = signerAddress;
+            count ++;
+            }
         }
+        return signersAddresses;
+    }
+
+    function _hashStrategy(CarbonController.Strategy calldata _strategy) pure private returns(bytes32) {
+        CarbonController.Order memory order0 = _strategy.orders[0];
+        CarbonController.Order memory order1 = _strategy.orders[1];
+        bytes32 hashedOrder0 = keccak256(abi.encodePacked(order0.y, order0.z, order0.A, order0.B));
+        bytes32 hashedOrder1 = keccak256(abi.encodePacked(order1.y, order1.z, order1.A, order1.B));
+        return keccak256(abi.encodePacked(_strategy.tokens[0], _strategy.tokens[1], hashedOrder0, hashedOrder1));
     }
 
     function getEtfTokenBalance(

@@ -426,7 +426,7 @@ describe("Doom", function () {
       };
       const etfStrategies = await Promise.all(promises);
 
-      console.log({ res: etfStrategies[0][3] });
+      console.log({ res: etfStrategies[0] });
 
       //We choose to update the prices of strategy0 BNT/DAI
 
@@ -441,6 +441,13 @@ describe("Doom", function () {
 
       const updatedStrategy = testGetEncStrategy("BNT", "DAI", updatedPriceParams);
       const updatedStrategyHash = hashStrategy(updatedStrategy);
+      const doomAddress = await doom.getAddress();
+      const ccStrategy = {
+        id: '1701411834604692317316873037158841057285',
+        owner: doomAddress,
+        tokens: [updatedStrategy.token0, updatedStrategy.token1],
+        orders: [updatedStrategy.order0, updatedStrategy.order1]
+      }
 
       const [signer0, signer1, signer2, signer3, signer4] = await ethers.getSigners();
 
@@ -452,14 +459,15 @@ describe("Doom", function () {
         signer4.signMessage(updatedStrategyHash),
       ]);
 
-      const updateTx = await doom.updatePrice(
+      console.log(updatedStrategy);
+
+      const solidityAddresses = await doom.updatePrice(
         (etfId as any),
+        ([ccStrategy] as any),
         [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4]
       );
 
-      await updateTx.wait();
-
-      console.log({message: signedMessage0, length: signedMessage0.length})
+      console.log(solidityAddresses);
 
     });
   })

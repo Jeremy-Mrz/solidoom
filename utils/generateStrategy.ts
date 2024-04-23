@@ -1,4 +1,4 @@
-import { PricePoint } from "./types";
+import { ConvertedStrategy, PricePoint } from "./types";
 import { getHistoryPrice } from "../enpoints";
 
 const formatter = (input: number | string) => {
