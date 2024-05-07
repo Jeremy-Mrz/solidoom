@@ -1,6 +1,6 @@
 import { OrderStruct } from "@bancor/carbon-sdk/dist/abis/types/CarbonController";
 import { TradeActionBNStr } from "@bancor/carbon-sdk";
-import { TokenInfos } from "./tokenInfos";
+import { TokenName } from "./tokenInfos";
 import { ethers } from "hardhat";
 import { Contract } from "hardhat/internal/hardhat-network/stack-traces/model";
 
@@ -8,7 +8,7 @@ type FromPromise<T> = T extends Promise<infer I> ? I : never;
 export type HardhatEthersSigner = FromPromise<ReturnType<typeof ethers.getSigners>>[0];
 
 export interface BalanceManipulationParams {
-  tokenName: TokenInfos;
+  tokenName: TokenName;
   address: string;
   amount: string;
 }

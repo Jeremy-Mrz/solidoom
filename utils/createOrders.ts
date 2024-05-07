@@ -1,6 +1,6 @@
 import { buildStrategyObject, encodeStrategy } from "@bancor/carbon-sdk/strategy-management";
 import { convertOrder } from "./converter";
-import { TokenInfos, tokens } from "./tokenInfos";
+import { TokenName, tokens } from "./tokenInfos";
 import { ConvertedStrategy, encodeStrategyParams } from "./types";
 
 const encodeStrategyParams = {
@@ -19,8 +19,8 @@ const encodeStrategyParams = {
  * @returns return an encoded strategy with the values of orders0 & order1 converted as BigInt 
  */
 export function testGetEncStrategy(
-  base: TokenInfos,
-  quote: TokenInfos,
+  base: TokenName,
+  quote: TokenName,
   priceParams: encodeStrategyParams = encodeStrategyParams
 ): ConvertedStrategy {
 

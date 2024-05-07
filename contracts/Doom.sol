@@ -49,6 +49,7 @@ interface CarbonController {
 contract Doom is IERC721Receiver, ERC1155 {
     CarbonController carbonController;
     address carbonAddress;
+    uint threshold = 2;
 
     constructor(address ccAddress) ERC1155("") {
         carbonController = CarbonController(ccAddress);
@@ -56,6 +57,10 @@ contract Doom is IERC721Receiver, ERC1155 {
     }
 
     using ECDSA for bytes32;
+
+    mapping(uint etfId => uint totalBalance) etfTotalBalance;
+    mapping(uint etfId => mapping(address tokenAddress => uint liquidity)) etfTokenPool;
+    mapping(uint etfId => mapping(address owner => uint balance)) etfUserBalance;
 
     event StrategiesCreated(bytes32 idsHash);
     event StategiesIdList(uint[] ids);
@@ -78,16 +83,12 @@ contract Doom is IERC721Receiver, ERC1155 {
         uint value;
     }
 
-    // etfId => tokenAddress => number of ERC20 for this etf
-    mapping(uint => mapping(address => uint)) etfTokenPool;
-
     receive() external payable {
         emit Received(msg.sender, msg.value);
     }
 
-    function getStrategy(
-        uint _id
-    ) public view returns (CarbonController.Strategy memory) {
+
+    function getStrategy(uint _id) public view returns (CarbonController.Strategy memory) {
         return carbonController.strategy(_id);
     }
 
@@ -117,13 +118,13 @@ contract Doom is IERC721Receiver, ERC1155 {
         emit StategiesIdList(ids);
         bytes32 idsHash = keccak256(abi.encodePacked(ids));
         emit StrategiesCreated(idsHash);
-        _mintEtfId(idsHash);
+        uint etfId = uint(idsHash);
+        _mintEtfId(etfId);
         return idsHash;
     }
 
-    function _mintEtfId(bytes32 idsHash) private {
-        uint etfId = uint(idsHash);
-        _mint(msg.sender, etfId, msg.value, "");
+    function _mintEtfId(uint etfId) private {
+        _mint(msg.sender, etfId, 0, "");
         emit EtfIdCreated(etfId);
     }
 
@@ -190,13 +191,14 @@ contract Doom is IERC721Receiver, ERC1155 {
     }
 
     function investo(
+        uint etfId,
         address _token,
         uint128 _amount,
         uint[] memory _idList
     ) external returns (uint) {
         //TODO make sure the id exists (require ttl supply / uri());
         uint length = _idList.length;
-        uint ratio = length * 2;
+        // uint ratio = length * 2;
         CarbonController.Strategy[]
             memory tokenStrategies = new CarbonController.Strategy[](length);
         uint tokenCount = 0;
@@ -214,10 +216,7 @@ contract Doom is IERC721Receiver, ERC1155 {
                 tokenCount++;
             }
         }
-        require(
-            tokenCount > 0,
-            "The token you're trying to invest on is not part of this portfolio"
-        );
+        require( tokenCount > 0, "The token you're trying to invest on is not part of this portfolio");
         uint128 share = _amount / uint128(tokenCount);
         uint tokenAmount = _amount;
         IERC20(_token).transferFrom(msg.sender, address(this), tokenAmount);
@@ -255,32 +254,52 @@ contract Doom is IERC721Receiver, ERC1155 {
                 );
             }
         }
+        _mint(msg.sender, etfId, _amount, "");
+        etfTotalBalance[etfId] = etfTotalBalance[etfId] + _amount;
+        etfUserBalance[etfId][msg.sender] = etfUserBalance[etfId][msg.sender] + _amount;
         return tokenCount;
     }
 
     function updatePrice(
         uint _etfId,
-        // CarbonController.Strategy[] calldata _currentStrategies,
+        CarbonController.Strategy[] calldata _currentStrategies,
         CarbonController.Strategy[] calldata _newStrategies,
         bytes[] calldata _signatures
-    ) pure public returns(address[] memory){
-        //Create solidity message from strategy
-        //Ecrecover addresses from message + signature
-        //Get balance of each address
-        //Verify if balance > treshhold
-        //Update strategy (retrieve current strategy values)
-        address[] memory signersAddresses = new address[](_newStrategies.length *_signatures.length);
-        uint count = 0;
-        for (uint i = 0; i < _newStrategies.length; i++) {
-            bytes32 message = keccak256(abi.encodePacked(_hashStrategy(_newStrategies[i])));
+    ) public {
+        uint length = _currentStrategies.length;
+        require(length == _newStrategies.length, "Different amount of current and new strategies");
+        require(_verifyUpdatePrice(_etfId, _newStrategies, _signatures), "Signers shares doesn't exceed the threshold required");
+        for(uint i = 0; i < length; i++) {
+            require(_currentStrategies[i].id == _newStrategies[i].id, "Missmatch beetween current and new strategies");
+            carbonController.updateStrategy(_newStrategies[i].id, _currentStrategies[i].orders, _newStrategies[i].orders);
+        }
+    }
+
+    function _verifyUpdatePrice(
+        uint _etfId, 
+        CarbonController.Strategy[] calldata _newStrategies,
+        bytes[] calldata _signatures
+        ) view private returns(bool) {
+        for(uint i = 0; i < _signatures.length; i++) {
             for(uint j = 0; j < _signatures.length; j++) {
-            bytes memory signature = _signatures[j];
-            address signerAddress = ECDSA.recover(message, signature);
-            signersAddresses[count] = signerAddress;
-            count ++;
+                if(i == j) continue;
+                if(keccak256(_signatures[i]) == keccak256(_signatures[j])) {
+                    revert("Same signer signed multiple times");
+                }
             }
         }
-        return signersAddresses;
+        bytes32[] memory stragiesHashes = new bytes32[](_newStrategies.length);
+        uint totalShares = 0;
+        for(uint i = 0; i < _newStrategies.length; i++) {
+            stragiesHashes[i] = _hashStrategy(_newStrategies[i]);
+        }
+        bytes32 message = ECDSA.toEthSignedMessageHash(keccak256(abi.encodePacked(stragiesHashes)));
+        for (uint i = 0; i < _signatures.length; i++) {
+            address signerAddress = ECDSA.recover(message, _signatures[i]);
+            totalShares += etfUserBalance[_etfId][signerAddress];
+        }
+        uint minSharesReq = etfTotalBalance[_etfId] / threshold;
+        return totalShares >= minSharesReq;
     }
 
     function _hashStrategy(CarbonController.Strategy calldata _strategy) pure private returns(bytes32) {

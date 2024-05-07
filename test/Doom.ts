@@ -2,18 +2,18 @@ import {
   loadFixture,
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
-import { balanceManipulation } from "./utils/balanceManipulation";
+import { balanceManipulation, balanceManipulationAll } from "./utils/balanceManipulation";
 import { ethers } from "hardhat";
 import { erc20abi } from "../contracts/erc20abi";
-import { tokens } from "../utils/tokenInfos";
+import { TokenName, tokens } from "../utils/tokenInfos";
 import { testGetEncStrategy } from "../utils/createOrders";
 import { bundleStrategies, bundleTrades } from "../utils/bundlers";
-import { config, initSDK } from "../utils/carbonSDK";
-import { createEthStrategies } from "./utils/createETHStrategies";
+import { initSDK } from "../utils/carbonSDK";
 // import { _carbonAbi } from "../typechain-types/factories/contracts/Doom.sol/CarbonController__factory";
 import { parseUnits } from "@bancor/carbon-sdk/utils";
-import { CarbonController, CarbonController__factory } from "../typechain-types";
-import { hashStrategy } from "../utils/hash";
+import { CarbonController__factory } from "../typechain-types";
+import { hashStrategies, hashStrategy } from "../utils/hash";
+import { HardhatEthersSigner } from "../utils/types";
 
 const { SDK } = initSDK();
 
@@ -27,7 +27,32 @@ async function generateTradeData(target: string, value: string, source: string) 
   return data;
 }
 
+async function approveErc20(tokenName: TokenName, amount: BigInt, target: string, signer?: HardhatEthersSigner) {
+  const token = tokens[tokenName];
+  const contract = new ethers.Contract(token.address, erc20abi, signer);
+  const tx = await contract.approve(target, amount);
+  return tx.wait();
+}
+
 describe("Doom", function () {
+
+  this.beforeAll(async () => {
+
+    const signers = await ethers.getSigners();
+    const addresses = await Promise.all([
+      signers[0].getAddress(),
+      signers[1].getAddress(),
+      signers[2].getAddress(),
+      signers[3].getAddress(),
+      signers[4].getAddress(),
+    ]);
+    const promises = [];
+    for (const address of addresses) {
+      promises.push(balanceManipulationAll(address));
+    }
+    await Promise.all(promises);
+
+  });
 
   // this.beforeAll(async () => {
   //   const [signer1, signer2, signer3] = await ethers.getSigners();
@@ -178,19 +203,14 @@ describe("Doom", function () {
         balanceManipulation("SHIB", user1Address),
       ]);
 
-      // await createEthStrategies(['BNT', 'DAI', 'USDC', 'SHIB'], SDK, user1);
-
       const strat1 = testGetEncStrategy("ETH", "DAI");
       const strat2 = testGetEncStrategy("ETH", "BNT");
       const strat3 = testGetEncStrategy("ETH", "SHIB");
       const strat4 = testGetEncStrategy("ETH", "USDC");
 
-      await Promise.all([
-        carbonController.createStrategy(strat1.token0, strat1.token1, ([strat1.order0, strat1.order1] as any)),
-        carbonController.createStrategy(strat2.token0, strat2.token1, ([strat2.order0, strat2.order1] as any)),
-        carbonController.createStrategy(strat3.token0, strat3.token1, ([strat3.order0, strat3.order1] as any)),
-        carbonController.createStrategy(strat4.token0, strat4.token1, ([strat4.order0, strat4.order1] as any))
-      ]);
+      const bundledEthStrat = bundleStrategies([strat1, strat2, strat3, strat4]);
+      const ethStratTx = await doom.multiCallCreateStrategy((bundledEthStrat as any));
+      await ethStratTx.wait();
 
       console.log("After balance manip and eth strat setup");
 
@@ -201,9 +221,13 @@ describe("Doom", function () {
       const ethValue = ethers.parseUnits("1");
 
       let ccStragiesIds: bigint[] = [];
+      let etfId: BigInt = BigInt(0);
       doom.on(doom.filters["StategiesIdList(uint256[])"], (ids) => {
         ccStragiesIds = [...ids];
       });
+      doom.on(doom.filters["EtfIdCreated(uint256)"], (id) => {
+        etfId = id;
+      })
 
       const tx0 = await doom.multiCallCreateStrategy(
         strategiesBundle as any,
@@ -220,15 +244,11 @@ describe("Doom", function () {
       const receipt1 = await tx1.wait();
 
       const balance = await contract.balanceOf(doomAddress);
-      console.log({ balance })
 
-      console.log({ ccStragiesIds })
-      const tx2 = await doom.investo(tokens['DAI'].address, tokenAmountInvested, ccStragiesIds);
+      const tx2 = await doom.investo((etfId as any), tokens['DAI'].address, tokenAmountInvested, ccStragiesIds);
       const receipt2 = await tx2.wait();
 
       const strat = await doom.getStrategy(ccStragiesIds[0]);
-      console.log({ strategy: strat[3] });
-
     });
 
     it.skip("Should create multiples carbon strategy using doom contract", async () => {
@@ -370,24 +390,9 @@ describe("Doom", function () {
 
   describe("Update strategy price", () => {
     it("Should allow user to invest on an ETF with new structure", async () => {
-      const { doom, carbonController } = await loadFixture(
+      const { doom } = await loadFixture(
         deployDoomFixture
       );
-
-      const [signer, user1] = await ethers.getSigners();
-      const signerAddress = await signer.getAddress();
-      const user1Address = await user1.getAddress();
-
-      await Promise.all([
-        balanceManipulation("DAI", signerAddress),
-        balanceManipulation("BNT", signerAddress),
-        balanceManipulation("USDC", signerAddress),
-        balanceManipulation("SHIB", signerAddress),
-        balanceManipulation("DAI", user1Address),
-        balanceManipulation("BNT", user1Address),
-        balanceManipulation("USDC", user1Address),
-        balanceManipulation("SHIB", user1Address),
-      ]);
 
       const strat1 = testGetEncStrategy("ETH", "DAI");
       const strat2 = testGetEncStrategy("ETH", "BNT");
@@ -426,10 +431,6 @@ describe("Doom", function () {
       };
       const etfStrategies = await Promise.all(promises);
 
-      console.log({ res: etfStrategies[0] });
-
-      //We choose to update the prices of strategy0 BNT/DAI
-
       const updatedPriceParams = {
         buyMin: "10",
         buyMax: "1500",
@@ -440,36 +441,83 @@ describe("Doom", function () {
       }
 
       const updatedStrategy = testGetEncStrategy("BNT", "DAI", updatedPriceParams);
+      const updatedStrategy2 = testGetEncStrategy("USDC", "SHIB", updatedPriceParams);
+
       const updatedStrategyHash = hashStrategy(updatedStrategy);
+      const updatedStrategyHash2 = hashStrategy(updatedStrategy2);
+
+      const finalHash = hashStrategies([updatedStrategyHash, updatedStrategyHash2]);
+
       const doomAddress = await doom.getAddress();
-      const ccStrategy = {
+      const currentStrategy0 = await doom.getStrategy("1701411834604692317316873037158841057285");
+      const currentStrategy1 = await doom.getStrategy("2041694201525630780780247644590609268742");
+
+      const ccStrategyUpdate = {
         id: '1701411834604692317316873037158841057285',
         owner: doomAddress,
         tokens: [updatedStrategy.token0, updatedStrategy.token1],
         orders: [updatedStrategy.order0, updatedStrategy.order1]
       }
+      const ccStrategyUpdate1 = {
+        id: '2041694201525630780780247644590609268742',
+        owner: doomAddress,
+        tokens: [updatedStrategy2.token0, updatedStrategy2.token1],
+        orders: [updatedStrategy2.order0, updatedStrategy2.order1]
+      }
 
       const [signer0, signer1, signer2, signer3, signer4] = await ethers.getSigners();
 
+      const tokenAmountInvestedDai = parseUnits('12', tokens['DAI'].decimals).toBigInt();
+      const tokenAmountInvestedBnt = parseUnits('6', tokens['BNT'].decimals).toBigInt();
+      const tokenAmountInvestedShib = parseUnits('4', tokens['SHIB'].decimals).toBigInt();
+
+      const doom1 = doom.connect(signer1);
+      const doom2 = doom.connect(signer2);
+      const doom3 = doom.connect(signer3);
+
+      await approveErc20('DAI', tokenAmountInvestedDai, doomAddress, signer1);
+      await approveErc20('BNT', tokenAmountInvestedBnt, doomAddress, signer2);
+      await approveErc20('SHIB', tokenAmountInvestedBnt, doomAddress, signer3);
+
+      const investTx1 = await doom1.investo(
+        (etfId as any),
+        tokens['DAI'].address,
+        tokenAmountInvestedDai,
+        ccStragiesIds
+      );
+      await investTx1.wait();
+      const investTx2 = await doom2.investo(
+        (etfId as any),
+        tokens['BNT'].address,
+        tokenAmountInvestedBnt,
+        ccStragiesIds
+      );
+      await investTx2.wait();
+      const investTx3 = await doom3.investo(
+        (etfId as any),
+        tokens['SHIB'].address,
+        tokenAmountInvestedShib,
+        ccStragiesIds
+      );
+      await investTx3.wait();
+
       const [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4] = await Promise.all([
-        signer0.signMessage(updatedStrategyHash),
-        signer1.signMessage(updatedStrategyHash),
-        signer2.signMessage(updatedStrategyHash),
-        signer3.signMessage(updatedStrategyHash),
-        signer4.signMessage(updatedStrategyHash),
+        signer0.signMessage(finalHash),
+        signer1.signMessage(finalHash),
+        signer2.signMessage(finalHash),
+        signer3.signMessage(finalHash),
+        signer4.signMessage(finalHash),
       ]);
 
-      console.log(updatedStrategy);
-
-      const solidityAddresses = await doom.updatePrice(
+      const totalShares = await doom.updatePrice(
         (etfId as any),
-        ([ccStrategy] as any),
+        ([ccStrategyUpdate, ccStrategyUpdate1] as any),
+        ([ccStrategyUpdate, ccStrategyUpdate1] as any),
         [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4]
       );
 
-      console.log(solidityAddresses);
-
     });
-  })
+    
+  });
 
 });

@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { TokenInfos, tokens } from "../../utils/tokenInfos";
+import { TokenName, tokens } from "../../utils/tokenInfos";
 import { balanceManipulation } from "./balanceManipulation";
 import { toBigInt } from "../../utils/converter";
 import { erc20abi } from "../../contracts/erc20abi";
@@ -13,7 +13,7 @@ async function approveTokenTransfer(tokenAddress: string, signer: HardhatEthersS
   await connect.approve(carbonController, tokenAmount.toString());
 }
 
-export async function createEthStrategies(quotes: TokenInfos[], SDK: Toolkit, signer: HardhatEthersSigner) {
+export async function createEthStrategies(quotes: TokenName[], SDK: Toolkit, signer: HardhatEthersSigner) {
   const signerAddress = await signer.getAddress();
   const txs = [];
   const updatedERC20Balance = "10000000";
