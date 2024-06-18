@@ -3,7 +3,7 @@ import { convertOrder } from "./converter";
 import { TokenName, tokens } from "./tokenInfos";
 import { ConvertedStrategy, encodeStrategyParams } from "./types";
 
-const encodeStrategyParams = {
+const defaultParams = {
   buyMin: "1",
   buyMax: "1000",
   sellMin: "1000",
@@ -21,7 +21,7 @@ const encodeStrategyParams = {
 export function testGetEncStrategy(
   base: TokenName,
   quote: TokenName,
-  priceParams: encodeStrategyParams = encodeStrategyParams
+  priceParams: encodeStrategyParams = defaultParams
 ): ConvertedStrategy {
 
   const baseToken = tokens[base];

@@ -27,6 +27,12 @@ async function generateTradeData(target: string, value: string, source: string) 
   return data;
 }
 
+function convertOrdersToUpdate(orders: any) {
+  const convorder0 = { y: orders[0][0], z: orders[0][1], A: orders[0][2], B: orders[0][3] };
+  const convorder1 = { y: orders[1][0], z: orders[1][1], A: orders[1][2], B: orders[1][3] };
+  return [convorder0, convorder1];
+}
+
 async function approveErc20(tokenName: TokenName, amount: BigInt, target: string, signer?: HardhatEthersSigner) {
   const token = tokens[tokenName];
   const contract = new ethers.Contract(token.address, erc20abi, signer);
@@ -431,39 +437,8 @@ describe("Doom", function () {
       };
       const etfStrategies = await Promise.all(promises);
 
-      const updatedPriceParams = {
-        buyMin: "10",
-        buyMax: "1500",
-        sellMin: "1500",
-        sellMax: "3000",
-        buyBudget: "0",
-        sellBudget: "0"
-      }
-
-      const updatedStrategy = testGetEncStrategy("BNT", "DAI", updatedPriceParams);
-      const updatedStrategy2 = testGetEncStrategy("USDC", "SHIB", updatedPriceParams);
-
-      const updatedStrategyHash = hashStrategy(updatedStrategy);
-      const updatedStrategyHash2 = hashStrategy(updatedStrategy2);
-
-      const finalHash = hashStrategies([updatedStrategyHash, updatedStrategyHash2]);
-
       const doomAddress = await doom.getAddress();
-      const currentStrategy0 = await doom.getStrategy("1701411834604692317316873037158841057285");
-      const currentStrategy1 = await doom.getStrategy("2041694201525630780780247644590609268742");
 
-      const ccStrategyUpdate = {
-        id: '1701411834604692317316873037158841057285',
-        owner: doomAddress,
-        tokens: [updatedStrategy.token0, updatedStrategy.token1],
-        orders: [updatedStrategy.order0, updatedStrategy.order1]
-      }
-      const ccStrategyUpdate1 = {
-        id: '2041694201525630780780247644590609268742',
-        owner: doomAddress,
-        tokens: [updatedStrategy2.token0, updatedStrategy2.token1],
-        orders: [updatedStrategy2.order0, updatedStrategy2.order1]
-      }
 
       const [signer0, signer1, signer2, signer3, signer4] = await ethers.getSigners();
 
@@ -501,6 +476,61 @@ describe("Doom", function () {
       );
       await investTx3.wait();
 
+      const currentStrategy0 = await doom.getStrategy("1701411834604692317316873037158841057285");
+      const currentStrategy1 = await doom.getStrategy("2041694201525630780780247644590609268742");
+
+      const updatedPriceParams = {
+        buyMin: "10",
+        buyMax: "1500",
+        sellMin: "1500",
+        sellMax: "3000",
+        buyBudget: ethers.formatUnits(currentStrategy0.orders[1].y, tokens['DAI'].decimals),
+        sellBudget: ethers.formatUnits(currentStrategy0.orders[0].y, tokens['BNT'].decimals)
+      }
+      const updatedPriceParams2 = {
+        buyMin: "10",
+        buyMax: "1500",
+        sellMin: "1500",
+        sellMax: "3000",
+        buyBudget: ethers.formatUnits(currentStrategy1.orders[1].y, tokens['SHIB'].decimals),
+        sellBudget: ethers.formatUnits(currentStrategy1.orders[0].y, tokens['USDC'].decimals) 
+      }
+
+      const updatedStrategy = testGetEncStrategy("BNT", "DAI", updatedPriceParams);
+      const updatedStrategy2 = testGetEncStrategy("USDC", "SHIB", updatedPriceParams2);
+
+      const updatedStrategyHash = hashStrategy(updatedStrategy);
+      const updatedStrategyHash2 = hashStrategy(updatedStrategy2);
+
+      const finalHash = hashStrategies([updatedStrategyHash, updatedStrategyHash2]);
+
+      const ccStrategyUpdate = {
+        id: '1701411834604692317316873037158841057285',
+        owner: doomAddress,
+        tokens: [updatedStrategy.token0, updatedStrategy.token1],
+        orders: [updatedStrategy.order0, updatedStrategy.order1]
+      }
+      const ccStrategyUpdate1 = {
+        id: '2041694201525630780780247644590609268742',
+        owner: doomAddress,
+        tokens: [updatedStrategy2.token0, updatedStrategy2.token1],
+        orders: [updatedStrategy2.order0, updatedStrategy2.order1]
+      }
+
+      const ccStrategyCurrent = {
+        id: '1701411834604692317316873037158841057285',
+        owner: doomAddress,
+        tokens: [currentStrategy0.tokens[0], currentStrategy0.tokens[1]],
+        orders: convertOrdersToUpdate(currentStrategy0.orders)
+      }
+      const ccStrategyCurrent1 = {
+        id: '2041694201525630780780247644590609268742',
+        owner: doomAddress,
+        tokens: [currentStrategy1.tokens[0], currentStrategy1.tokens[1]],
+        orders: convertOrdersToUpdate(currentStrategy1.orders)
+      }
+
+
       const [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4] = await Promise.all([
         signer0.signMessage(finalHash),
         signer1.signMessage(finalHash),
@@ -511,13 +541,13 @@ describe("Doom", function () {
 
       const totalShares = await doom.updatePrice(
         (etfId as any),
-        ([ccStrategyUpdate, ccStrategyUpdate1] as any),
+        ([ccStrategyCurrent, ccStrategyCurrent1] as any),
         ([ccStrategyUpdate, ccStrategyUpdate1] as any),
         [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4]
       );
 
     });
-    
+
   });
 
 });

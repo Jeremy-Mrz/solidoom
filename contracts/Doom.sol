@@ -87,6 +87,9 @@ contract Doom is IERC721Receiver, ERC1155 {
         emit Received(msg.sender, msg.value);
     }
 
+    function test() pure public returns(string memory) {
+        return "This works somehow";
+    }
 
     function getStrategy(uint _id) public view returns (CarbonController.Strategy memory) {
         return carbonController.strategy(_id);
