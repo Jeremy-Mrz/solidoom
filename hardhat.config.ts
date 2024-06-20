@@ -11,6 +11,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 1337,
       allowUnlimitedContractSize: true,
+      initialBaseFeePerGas: 0,
       forking: {
         url: "https://eth-mainnet.g.alchemy.com/v2/JCPJlJLFLn4Dw3NEuiGKCPQBvQhv4VWt"
       }

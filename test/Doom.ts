@@ -251,7 +251,7 @@ describe("Doom", function () {
 
       const balance = await contract.balanceOf(doomAddress);
 
-      const tx2 = await doom.investo((etfId as any), tokens['DAI'].address, tokenAmountInvested, ccStragiesIds);
+      const tx2 = await doom.investo((etfId as any), tokens['DAI'].address as any, tokenAmountInvested as any, ccStragiesIds as any);
       const receipt2 = await tx2.wait();
 
       const strat = await doom.getStrategy(ccStragiesIds[0]);
@@ -456,23 +456,23 @@ describe("Doom", function () {
 
       const investTx1 = await doom1.investo(
         (etfId as any),
-        tokens['DAI'].address,
-        tokenAmountInvestedDai,
-        ccStragiesIds
+        tokens['DAI'].address as any,
+        tokenAmountInvestedDai as any,
+        ccStragiesIds as any
       );
       await investTx1.wait();
       const investTx2 = await doom2.investo(
         (etfId as any),
-        tokens['BNT'].address,
-        tokenAmountInvestedBnt,
-        ccStragiesIds
+        tokens['BNT'].address as any,
+        tokenAmountInvestedBnt as any,
+        ccStragiesIds as any
       );
       await investTx2.wait();
       const investTx3 = await doom3.investo(
         (etfId as any),
-        tokens['SHIB'].address,
-        tokenAmountInvestedShib,
-        ccStragiesIds
+        tokens['SHIB'].address as any,
+        tokenAmountInvestedShib as any,
+        ccStragiesIds as any
       );
       await investTx3.wait();
 
@@ -543,7 +543,7 @@ describe("Doom", function () {
         (etfId as any),
         ([ccStrategyCurrent, ccStrategyCurrent1] as any),
         ([ccStrategyUpdate, ccStrategyUpdate1] as any),
-        [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4]
+        [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4] as any
       );
 
     });

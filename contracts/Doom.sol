@@ -71,6 +71,8 @@ contract Doom is IERC721Receiver, ERC1155 {
     struct Strategies {
         address token0;
         address token1;
+        uint amount0;
+        uint amount1;
         CarbonController.Order[2] orders;
     }
 
@@ -87,6 +89,9 @@ contract Doom is IERC721Receiver, ERC1155 {
         emit Received(msg.sender, msg.value);
     }
 
+    /**
+    @dev For local node testing, to be deleted
+    */
     function test() pure public returns(string memory) {
         return "This works somehow";
     }
@@ -104,12 +109,23 @@ contract Doom is IERC721Receiver, ERC1155 {
         return id;
     }
 
+    function tokenCarbonApproval(address _token, uint _amount) private {
+        IERC20(_token).transferFrom(msg.sender, address(this), _amount);
+        IERC20(_token).approve(carbonAddress, _amount);
+    }
+
     function multiCallCreateStrategy(
         Strategies[] calldata strategies
     ) external payable returns (bytes32) {
         uint length = strategies.length;
         require(length > 0, "No strategies received");
         uint[] memory ids = new uint[](length);
+        for (uint i = 0; i < length; i++) {
+            tokenCarbonApproval(strategies[i].token0, strategies[i].amount0);
+            console.log(strategies[i].token0);
+            console.log(strategies[i].amount0);
+            tokenCarbonApproval(strategies[i].token1, strategies[i].amount1);
+        }
         for (uint i = 0; i < length; i++) {
             uint id = carbonController.createStrategy(
                 strategies[i].token0,
@@ -222,8 +238,9 @@ contract Doom is IERC721Receiver, ERC1155 {
         require( tokenCount > 0, "The token you're trying to invest on is not part of this portfolio");
         uint128 share = _amount / uint128(tokenCount);
         uint tokenAmount = _amount;
-        IERC20(_token).transferFrom(msg.sender, address(this), tokenAmount);
-        IERC20(_token).approve(carbonAddress, tokenAmount);
+        tokenCarbonApproval(_token, tokenAmount);
+        // IERC20(_token).transferFrom(msg.sender, address(this), tokenAmount);
+        // IERC20(_token).approve(carbonAddress, tokenAmount);
         for (uint i = 0; i < tokenStrategies.length; i++) {
             CarbonController.Strategy memory strat = tokenStrategies[i];
             if (_token == strat.tokens[0]) {

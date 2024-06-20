@@ -63,6 +63,8 @@ export interface BundledStrategy {
   token0: string;
   token1: string;
   orders: OrderStruct[];
+  amount0: string;
+  amount1: string;
 }
 
 export type StrategyBundle = BundledStrategy[];
