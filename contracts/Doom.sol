@@ -114,6 +114,7 @@ contract Doom is IERC721Receiver, ERC1155 {
         IERC20(_token).approve(carbonAddress, _amount);
     }
 
+    //TODO: Native token case
     function multiCallCreateStrategy(
         Strategies[] calldata strategies
     ) external payable returns (bytes32) {

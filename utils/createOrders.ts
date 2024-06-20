@@ -50,7 +50,6 @@ export function testGetEncStrategy(
   const { order0, order1, token0, token1 } = encStategy;
   const convOrders = convertOrder([order0, order1]);
 
-  console.log({token: token0})
   const amount0 = parseUnits(sellBudget, baseToken.decimals).toString();
   const amount1 = parseUnits(buyBudget, quoteToken.decimals).toString();
 

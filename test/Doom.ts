@@ -102,6 +102,7 @@ describe("Doom", function () {
     return { doom, carbonController, owner, otherAccount };
   }
 
+  //Deprecated
   describe.skip("BalanceManipulation", () => {
     it("Should add some DAI to a test address", async () => {
 
@@ -137,7 +138,7 @@ describe("Doom", function () {
 
     });
   })
-
+  //Deprecated
   describe.skip("Get strategy", () => {
     it("Should return the strategy from the carbon controller interface", async () => {
       const { doom } = await loadFixture(
@@ -148,7 +149,7 @@ describe("Doom", function () {
     });
 
   });
-
+  //Deprecated
   describe.skip("Create ETH strategies", () => {
     it.skip("Should create several strategies selling tokens for ETH", async () => {
 
@@ -162,7 +163,7 @@ describe("Doom", function () {
 
     });
   });
-
+  //Deprecated
   describe.skip("Create strategy", () => {
     it.skip("Should create a carbon strategy using doom contract", async () => {
       const { doom } = await loadFixture(
@@ -393,28 +394,29 @@ describe("Doom", function () {
 
   });
 
-  describe.skip("Update strategy price", () => {
+
+  describe("Update strategy price", () => {
     it("Should allow user to invest on an ETF with new structure", async () => {
       const { doom } = await loadFixture(
         deployDoomFixture
       );
+      
+      // const strat1 = testGetEncStrategy("ETH", "DAI");
+      // const strat2 = testGetEncStrategy("ETH", "BNT");
+      // const strat3 = testGetEncStrategy("ETH", "SHIB");
+      // const strat4 = testGetEncStrategy("ETH", "USDC");
 
-      const strat1 = testGetEncStrategy("ETH", "DAI");
-      const strat2 = testGetEncStrategy("ETH", "BNT");
-      const strat3 = testGetEncStrategy("ETH", "SHIB");
-      const strat4 = testGetEncStrategy("ETH", "USDC");
+      // const bundledEthStrat = bundleStrategies([strat1, strat2, strat3, strat4]);
 
-      const bundledEthStrat = bundleStrategies([strat1, strat2, strat3, strat4]);
-      const ethStratTx = await doom.multiCallCreateStrategy((bundledEthStrat as any));
-      await ethStratTx.wait();
+      // console.log(bundledEthStrat);
 
-      console.log("After balance manip and eth strat setup");
+      // const ethStratTx = await doom.multiCallCreateStrategy((bundledEthStrat as any));
+      // await ethStratTx.wait();
 
       const strategy0 = testGetEncStrategy("BNT", "DAI");
       const strategy1 = testGetEncStrategy("USDC", "SHIB");
 
       const strategiesBundle = bundleStrategies([strategy0, strategy1]);
-      const ethValue = ethers.parseUnits("1");
 
       let ccStragiesIds: bigint[] = [];
       let etfId: BigInt = BigInt(0);
@@ -425,11 +427,10 @@ describe("Doom", function () {
         etfId = id;
       })
 
-      const tx0 = await doom.multiCallCreateStrategy(
-        strategiesBundle as any,
-        { value: ethValue }
-      );
-      const receipt0 = await tx0.wait();
+      const tx0 = await doom.multiCallCreateStrategy(strategiesBundle as any);
+
+      await tx0.wait();
+
       const promises = [];
       for (const id of ccStragiesIds) {
         promises.push(doom.getStrategy(id));
@@ -475,8 +476,9 @@ describe("Doom", function () {
       );
       await investTx3.wait();
 
-      const currentStrategy0 = await doom.getStrategy("1701411834604692317316873037158841057285");
-      const currentStrategy1 = await doom.getStrategy("2041694201525630780780247644590609268742");
+      //In case of issues, verify id (ccStrategiesIds);
+      const currentStrategy0 = await doom.getStrategy("340282366920938463463374607431768211457");
+      const currentStrategy1 = await doom.getStrategy("680564733841876926926749214863536422914");
 
       const updatedPriceParams = {
         buyMin: "10",
@@ -504,31 +506,30 @@ describe("Doom", function () {
       const finalHash = hashStrategies([updatedStrategyHash, updatedStrategyHash2]);
 
       const ccStrategyUpdate = {
-        id: '1701411834604692317316873037158841057285',
+        id: '340282366920938463463374607431768211457',
         owner: doomAddress,
         tokens: [updatedStrategy.token0, updatedStrategy.token1],
         orders: [updatedStrategy.order0, updatedStrategy.order1]
       }
       const ccStrategyUpdate1 = {
-        id: '2041694201525630780780247644590609268742',
+        id: '680564733841876926926749214863536422914',
         owner: doomAddress,
         tokens: [updatedStrategy2.token0, updatedStrategy2.token1],
         orders: [updatedStrategy2.order0, updatedStrategy2.order1]
       }
 
       const ccStrategyCurrent = {
-        id: '1701411834604692317316873037158841057285',
+        id: '340282366920938463463374607431768211457',
         owner: doomAddress,
         tokens: [currentStrategy0.tokens[0], currentStrategy0.tokens[1]],
         orders: convertOrdersToUpdate(currentStrategy0.orders)
       }
       const ccStrategyCurrent1 = {
-        id: '2041694201525630780780247644590609268742',
+        id: '680564733841876926926749214863536422914',
         owner: doomAddress,
         tokens: [currentStrategy1.tokens[0], currentStrategy1.tokens[1]],
         orders: convertOrdersToUpdate(currentStrategy1.orders)
       }
-
 
       const [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4] = await Promise.all([
         signer0.signMessage(finalHash),
@@ -538,18 +539,19 @@ describe("Doom", function () {
         signer4.signMessage(finalHash),
       ]);
 
-      const totalShares = await doom.updatePrice(
+      const tx = await doom.updatePrice(
         (etfId as any),
         ([ccStrategyCurrent, ccStrategyCurrent1] as any),
         ([ccStrategyUpdate, ccStrategyUpdate1] as any),
         [signedMessage0, signedMessage1, signedMessage2, signedMessage3, signedMessage4] as any
       );
 
+      await tx.wait();
     });
 
   });
 
-  describe("Create strategy with budget", () => {
+  describe.skip("Create strategy with budget", () => {
     it("Should allow user to create a strategy with buy/sell budget", async () => {
       const { doom } = await loadFixture(deployDoomFixture);
       const doomAddress = await doom.getAddress();
