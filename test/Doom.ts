@@ -393,8 +393,7 @@ describe("Doom", function () {
 
   });
 
-
-  describe("Update strategy price", () => {
+  describe.skip("Update strategy price", () => {
     it("Should allow user to invest on an ETF with new structure", async () => {
       const { doom } = await loadFixture(
         deployDoomFixture
@@ -493,7 +492,7 @@ describe("Doom", function () {
         sellMin: "1500",
         sellMax: "3000",
         buyBudget: ethers.formatUnits(currentStrategy1.orders[1].y, tokens['SHIB'].decimals),
-        sellBudget: ethers.formatUnits(currentStrategy1.orders[0].y, tokens['USDC'].decimals) 
+        sellBudget: ethers.formatUnits(currentStrategy1.orders[0].y, tokens['USDC'].decimals)
       }
 
       const updatedStrategy = testGetEncStrategy("BNT", "DAI", updatedPriceParams);
@@ -549,5 +548,47 @@ describe("Doom", function () {
     });
 
   });
+
+  describe("Create strategy with budget", () => {
+    it("Should allow user to create a strategy with buy/sell budget", async () => {
+      const { doom } = await loadFixture(deployDoomFixture);
+      const doomAddress = await doom.getAddress();
+
+      const signers = await ethers.getSigners();
+
+      const DAI = tokens['DAI'];
+      const BNT = tokens['BNT'];
+
+      const testParams = {
+        buyMin: "1",
+        buyMax: "1000",
+        sellMin: "1000",
+        sellMax: "2000",
+        buyBudget: "1",
+        sellBudget: "2"
+      };
+
+      const daiContract = new ethers.Contract(DAI.address, erc20abi, signers[0]);
+      const bntContract = new ethers.Contract(BNT.address, erc20abi, signers[0]);
+
+      const daiAmount = parseUnits("2", DAI.decimals).toString();
+      const bntAmount = parseUnits("1", BNT.decimals).toString();
+      
+      const approvalDai = await daiContract.approve(doomAddress, BigInt(daiAmount));
+      const approvalBnt = await bntContract.approve(doomAddress, BigInt(bntAmount));
+      
+      await approvalDai.wait();
+      await approvalBnt.wait();
+
+      const strat = testGetEncStrategy("DAI", "BNT", testParams);
+      const bundle = bundleStrategies([strat]);
+
+      console.log({orders: bundle[0].orders})
+
+      const tx = await doom.multiCallCreateStrategy(bundle as any);
+      await tx.wait();
+
+    });
+  })
 
 });

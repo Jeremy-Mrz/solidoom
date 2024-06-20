@@ -3,6 +3,7 @@ import { TradeActionBNStr } from "@bancor/carbon-sdk";
 import { TokenName } from "./tokenInfos";
 import { ethers } from "hardhat";
 import { Contract } from "hardhat/internal/hardhat-network/stack-traces/model";
+import { BigNumberish } from "@bancor/carbon-sdk/utils";
 
 type FromPromise<T> = T extends Promise<infer I> ? I : never;
 export type HardhatEthersSigner = FromPromise<ReturnType<typeof ethers.getSigners>>[0];
@@ -55,6 +56,8 @@ export interface encodeStrategyParams {
 export interface ConvertedStrategy {
   token0: string;
   token1: string;
+  amount0: BigNumberish;
+  amount1: BigNumberish;
   order0: OrderStruct;
   order1: OrderStruct;
 }
@@ -63,8 +66,8 @@ export interface BundledStrategy {
   token0: string;
   token1: string;
   orders: OrderStruct[];
-  amount0: string;
-  amount1: string;
+  amount0: BigNumberish;
+  amount1: BigNumberish;
 }
 
 export type StrategyBundle = BundledStrategy[];

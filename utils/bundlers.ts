@@ -8,8 +8,8 @@ const getMinReturn = (amount: string, percent: number) => (Number(amount) * (1 -
 export function bundleStrategies(strategies: ConvertedStrategy[]): StrategyBundle {
   const bundle = [];
   for (const strategy of strategies) {
-    const { token0, token1, order0, order1 } = strategy;
-    bundle.push({ token0, token1, amount0: "0", amount1: "0", orders: [order0, order1] });
+    const { token0, token1, amount0, amount1, order0, order1 } = strategy;
+    bundle.push({ token0, token1, amount0, amount1, orders: [order0, order1] });
   };
   return bundle;
 }

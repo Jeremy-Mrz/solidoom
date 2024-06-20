@@ -122,8 +122,6 @@ contract Doom is IERC721Receiver, ERC1155 {
         uint[] memory ids = new uint[](length);
         for (uint i = 0; i < length; i++) {
             tokenCarbonApproval(strategies[i].token0, strategies[i].amount0);
-            console.log(strategies[i].token0);
-            console.log(strategies[i].amount0);
             tokenCarbonApproval(strategies[i].token1, strategies[i].amount1);
         }
         for (uint i = 0; i < length; i++) {

@@ -2,6 +2,7 @@ import { buildStrategyObject, encodeStrategy } from "@bancor/carbon-sdk/strategy
 import { convertOrder } from "./converter";
 import { TokenName, tokens } from "./tokenInfos";
 import { ConvertedStrategy, encodeStrategyParams } from "./types";
+import { parseUnits } from "@bancor/carbon-sdk/utils";
 
 const defaultParams = {
   buyMin: "1",
@@ -49,6 +50,10 @@ export function testGetEncStrategy(
   const { order0, order1, token0, token1 } = encStategy;
   const convOrders = convertOrder([order0, order1]);
 
-  return { token0, token1, order0: convOrders[0], order1: convOrders[1] };
+  console.log({token: token0})
+  const amount0 = parseUnits(sellBudget, baseToken.decimals).toString();
+  const amount1 = parseUnits(buyBudget, quoteToken.decimals).toString();
+
+  return { token0, token1, amount0: BigInt(amount0), amount1: BigInt(amount1), order0: convOrders[0], order1: convOrders[1] };
 };
 
